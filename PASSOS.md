@@ -1,180 +1,72 @@
-# Registro de Passos: Construção da API
+# Registro de Passos
 
-Este arquivo documenta, em ordem cronológica, cada comando executado e a sua finalidade
-durante a construção da API REST de Clientes em Ruby on Rails.
+Diário dos comandos rodados pra montar a API. Para descrição e
+instruções de uso, ver o `README.md`.
 
-> O conteúdo de apresentação do projeto (descrição, diagrama e instruções para rodar)
-> fica no `README.md`. Este arquivo é o "diário de bordo" da construção.
+## Pré-requisitos
 
----
+- Ruby 3.1.6
+- Rails 7.1.6
+- PostgreSQL local
 
-## Pré-requisitos verificados
-
-- Ruby `3.1.6`
-- Rails `7.1.6`
-- PostgreSQL instalado e acessível localmente
-
-Comandos de verificação:
-
-```bash
-ruby --version
-rails --version
-```
-
----
-
-## Passo 1: Criação do projeto Rails em modo API
-
-**Comando executado:**
+## 1. Criar o projeto em modo API
 
 ```bash
 rails new . --api -d postgresql
 ```
 
-**O que foi feito:**
+`--api` deixa o Rails sem session/cookies/asset pipeline (não precisamos
+disso, apenas retornar JSON). `-d postgresql` configura o adapter em
+todos os ambientes (`config/database.yml`).
 
-- `rails new .` gera o esqueleto Rails no diretório atual (`desafio-final-pos`).
-- `--api` configura o projeto em **modo API-only**: remove middleware/sessões/assets
-  voltados a aplicações web tradicionais e mantém apenas o necessário para
-  servir JSON. Reflete o cenário do enunciado (API REST pública para parceiros).
-- `-d postgresql` define o **PostgreSQL** como adaptador de banco em todos os
-  ambientes (`config/database.yml`).
+Rodou `bundle install` automaticamente e gerou o `Gemfile.lock`.
 
-**Efeitos colaterais ativados automaticamente pelo Rails:**
-
-- `--skip-javascript`, `--skip-hotwire`, `--skip-asset-pipeline`: coerentes com
-  uma API que não renderiza views.
-
-**Saída relevante:**
-
-- Estrutura padrão criada (`app/`, `config/`, `db/`, etc.).
-- `git init` executado automaticamente.
-- `bundle install` executado, instalando as 72 gems do `Gemfile`.
-- `Gemfile.lock` gerado com a plataforma `x86_64-linux`.
-
----
-
-## Passo 2: Geração do scaffold do recurso Cliente
-
-**Comando executado:**
+## 2. Gerar o scaffold do recurso Cliente
 
 ```bash
 bin/rails generate scaffold Cliente nome:string email:string
 ```
 
-**Por que usar `scaffold`:**
+Isso cria o model (`app/models/cliente.rb`), a migration
+(`db/migrate/*_create_clientes.rb`), o controller com as 5 ações REST,
+as rotas (`resources :clientes`) e os esqueletos de teste.
 
-O gerador `scaffold` do Rails é o atalho idiomático para criar um recurso REST
-completo em uma única chamada. Como o enunciado pede uma **API CRUD** com
-arquitetura **MVC**, o scaffold cobre a maior parte do MVC de uma só vez,
-respeitando convenções do framework e mantém o projeto alinhado ao "padrão Rails".
+Falta ainda a camada Service e os endpoints extras de contagem e busca
+por nome, que entram no Passo 4.
 
-**Artefatos criados pelo Rails:**
-
-| Camada (MVC)      | Arquivo                                                  | Função |
-| ----------------- | -------------------------------------------------------- | ------ |
-| Model             | `app/models/cliente.rb`                                  | Classe `Cliente < ApplicationRecord`: mapeia a tabela `clientes` via Active Record. |
-| Migration         | `db/migrate/*_create_clientes.rb`                        | Cria a tabela `clientes` com colunas `nome:string`, `email:string` e `timestamps`. |
-| Controller        | `app/controllers/clientes_controller.rb`                 | Endpoints REST: `index`, `show`, `create`, `update`, `destroy`, todos respondendo em **JSON** (modo `--api`). |
-| Routes            | `config/routes.rb` (`resources :clientes`)               | Roteamento resourceful: gera as 5 rotas RESTful para `/clientes`. |
-| Testes            | `test/models/cliente_test.rb`, `test/controllers/clientes_controller_test.rb`, `test/fixtures/clientes.yml` | Esqueletos de teste (Minitest, padrão Rails). |
-
-**Mapeamento com os requisitos do enunciado:**
-
-| Requisito                | Endpoint gerado pelo scaffold       | Status |
-| ------------------------ | ----------------------------------- | ------ |
-| Create                   | `POST   /clientes`                  | Pronto |
-| Read (Find All)          | `GET    /clientes`                  | Pronto |
-| Read (Find By ID)        | `GET    /clientes/:id`              | Pronto |
-| Update                   | `PATCH/PUT /clientes/:id`           | Pronto |
-| Delete                   | `DELETE /clientes/:id`              | Pronto |
-| Contagem (`count`)       | -                                   | Pendente (será adicionado num passo posterior) |
-| Find By Name             | -                                   | Pendente (será adicionado num passo posterior) |
-
-> A **camada Service** pedida no exemplo Java não nasce do scaffold do Rails
-> (o framework, por padrão, concentra a lógica no Model + Controller "magro").
-> Vamos introduzi-la manualmente num passo seguinte, junto com os endpoints
-> extras (`/contar` e `/nome/:nome`), para deixar o desenho MVC explícito.
-
----
-
-## Passo 3: Criação dos bancos e execução das migrations
-
-**Comando executado:**
+## 3. Criar os bancos e rodar a migration
 
 ```bash
 bin/rails db:create db:migrate
 ```
 
-**O que cada subcomando faz:**
+`db:create` cria os bancos de development e test no PostgreSQL local;
+`db:migrate` aplica a `CreateClientes` (cria a tabela `clientes` com
+`nome`, `email` e timestamps). O `db/schema.rb` é regerado e fica
+versionado.
 
-- `db:create`: lê `config/database.yml` e cria, no PostgreSQL local, os bancos
-  de cada ambiente que ainda não existem (no nosso caso `development` e `test`).
-  Esse atalho do Rails dispensa o uso direto de `createdb` / `psql`.
-- `db:migrate`: aplica, em ordem cronológica, todas as migrations pendentes
-  em `db/migrate/`. Aqui aplicou a `CreateClientes`, criando a tabela
-  `clientes` com as colunas `nome`, `email`, `created_at`, `updated_at`.
+## 4. Camada de Service + endpoints extras + validações
 
-**Saída relevante:**
+A camada Service não nasce do scaffold (não é convenção do Rails). Como
+o enunciado pede `Controller → Service → Model` espelhando o exemplo
+Java, ela entra manualmente.
 
-```
-Created database 'desafio_final_pos_development'
-Created database 'desafio_final_pos_test'
-== 20260524120426 CreateClientes: migrating ===================================
--- create_table(:clientes)
-   -> 0.0108s
-== 20260524120426 CreateClientes: migrated (0.0108s) ==========================
-```
+### 4.1 `app/services/cliente_service.rb`
 
-**Efeito colateral importante:**
+Qualquer pasta dentro de `app/` é autocarregada pelo Zeitwerk, então
+basta criar `app/services/` para a classe ficar disponível. Métodos
+implementados: `listar_todos`, `buscar_por_id`, `busca_por_nome`,
+`contar`, `salvar`, `atualizar`, `deletar`.
 
-- O arquivo `db/schema.rb` foi (re)gerado automaticamente pelo Rails. Ele é
-  o "snapshot" do estado atual do schema e é o que `db:schema:load` usa para
-  recriar o banco do zero em ambientes novos (por exemplo, CI). Deve ser
-  versionado no Git.
+### 4.2 Controller delegando para o service
 
----
+O `ClientesController` passa a chamar o `ClienteService` em cada ação.
+Ele continua respondendo só por HTTP: recebe params, chama o service,
+devolve status + JSON. Foram adicionadas duas ações novas: `count` em
+`GET /clientes/count` e `by_name` em `GET /clientes/nome/:nome`. O
+`set_cliente` devolve 404 JSON quando o id não existe.
 
-## Passo 4: Camada de Service + endpoints extras (`count`, `find by name`) + validações
-
-Este passo **não é um gerador do Rails**: a "camada Service" não é uma convenção
-nativa do framework (que normalmente recomenda *fat models, skinny controllers*).
-Como o exemplo Java do enunciado pede explicitamente uma camada `Service` entre
-`Controller` e `Model`, introduzi-la manualmente é o equivalente Rails do
-desenho descrito no enunciado.
-
-### 4.1. Criar `app/services/cliente_service.rb`
-
-Por convenção, qualquer pasta criada dentro de `app/` é automaticamente
-carregada pelo *autoloader* do Rails (Zeitwerk). Por isso basta criar
-`app/services/` e a classe `ClienteService` fica disponível em toda a
-aplicação sem `require` manual.
-
-Métodos implementados (espelhando o `ClienteService.java` do enunciado):
-
-| Método Ruby                     | Equivalente Java          | O que faz |
-| ------------------------------- | ------------------------- | --------- |
-| `listar_todos`                  | `listarTodos`             | `Cliente.all` |
-| `buscar_por_id(id)`             | `buscarPorId`             | `Cliente.find_by(id:)` (retorna `nil` se não achar, em vez de lançar exceção) |
-| `busca_por_nome(nome)`         | `buscarPorNome`           | `Cliente.where("nome ILIKE ?", "%nome%")`: busca *case-insensitive* parcial, mais útil que igualdade estrita |
-| `contar`                        | `contarClientes`          | `Cliente.count` |
-| `salvar(atributos)`             | `salvar`                  | `Cliente.create(atributos)` |
-| `atualizar(cliente, atributos)` | (implícito no `salvar`)   | `cliente.update(atributos)` |
-| `deletar(cliente)`              | `deletar`                 | `cliente.destroy` |
-
-### 4.2. Refatorar `app/controllers/clientes_controller.rb`
-
-O controller passa a **delegar toda a regra de negócio para o `ClienteService`**.
-As ações HTTP só cuidam de: receber parâmetros, chamar o service, e responder
-com o status/JSON correto. Foram adicionadas duas novas ações:
-
-- `count`: responde `{ "total": N }` em `GET /clientes/count`
-- `by_name`: responde lista filtrada por `nome` em `GET /clientes/nome/:nome`
-
-O `set_cliente` agora também retorna `404` JSON quando o cliente não existe,
-em vez de deixar o Rails levantar `ActiveRecord::RecordNotFound`.
-
-### 4.3. Adicionar rotas em `config/routes.rb`
+### 4.3 Rotas
 
 ```ruby
 resources :clientes do
@@ -185,11 +77,10 @@ resources :clientes do
 end
 ```
 
-O bloco `collection` mantém as 5 rotas RESTful do `resources` original e
-adiciona as duas novas no escopo do recurso (não confundir com `member`,
-que seria por ID).
+`collection` mantém as 5 rotas RESTful e adiciona as duas novas no
+escopo do recurso (diferente de `member`, que seria por id).
 
-### 4.4. Adicionar validações em `app/models/cliente.rb`
+### 4.4 Validações no model
 
 ```ruby
 validates :nome, presence: true
@@ -197,12 +88,10 @@ validates :email, presence: true,
                   format: { with: URI::MailTo::EMAIL_REGEXP, message: "formato inválido" }
 ```
 
-Boas práticas básicas de domínio: nome e email obrigatórios, email com
-formato válido. As validações são executadas no `create`/`update` e fazem
-o controller responder `422 Unprocessable Entity` automaticamente em caso
-de falha (já tratado em `create` e `update`).
+`create` e `update` já retornam 422 automaticamente quando as
+validações falham.
 
-### 4.5. Verificação: rotas finais
+### 4.5 Rotas finais
 
 Saída de `bin/rails routes -c clientes`:
 
@@ -218,43 +107,33 @@ by_name_clientes GET    /clientes/nome/:nome(.:format) clientes#by_name
                  DELETE /clientes/:id(.:format)        clientes#destroy
 ```
 
-**Cobertura final dos requisitos do enunciado:**
+Os 7 endpoints do enunciado cobertos: CRUD, contagem e busca por nome.
 
-| Requisito       | Endpoint                  | Status |
-| --------------- | ------------------------- | ------ |
-| Create          | `POST   /clientes`        | Pronto |
-| Find All (Read) | `GET    /clientes`        | Pronto |
-| Find By ID      | `GET    /clientes/:id`    | Pronto |
-| Update          | `PATCH  /clientes/:id`    | Pronto |
-| Delete          | `DELETE /clientes/:id`    | Pronto |
-| Contagem        | `GET    /clientes/count`  | Pronto |
-| Find By Name    | `GET    /clientes/nome/:nome` | Pronto |
+## 5. Diagrama e README de apresentação
 
----
+Os artefatos de apresentação ficam em `diagrama.md` (4 diagramas
+Mermaid: contexto C4 nível 1, componentes C4 nível 3, mapa de
+endpoints, e a sequência de `POST /clientes`) e no `README.md`.
 
-## Passo 5: Diagrama de arquitetura + README de apresentação
+## 6. Refactors pós code review
 
-Último passo: criar os artefatos de **apresentação** do projeto.
+Mudanças que entraram depois do code review (resumo, ver
+`CODE_REVIEW.md` para o detalhe):
 
-### 5.1. `diagrama.md`
-
-Arquivo na raiz do projeto contendo 4 diagramas em **Mermaid**:
-
-1. **Contexto (C4 nível 1)**: quem usa o sistema e com o que ele conversa.
-2. **Componentes (C4 nível 3)**: atravessamento do request por
-   Routes → Controller → Service → Model → Banco.
-3. **Mapa de endpoints**: relação 1-para-1 entre rota HTTP e ação do controller.
-4. **Sequência `POST /clientes`**: fluxo passo a passo da criação.
-
-
----
-
-## Estado final dos entregáveis (conforme o enunciado)
-
-| Entregável do enunciado                                  | Arquivo no projeto                  |
-| -------------------------------------------------------- | ----------------------------------- |
-| 1. Desenho arquitetural (UML/C4/outro)                   | [`diagrama.md`](diagrama.md)        |
-| 2. Estrutura de pastas + papel dos componentes           | [`README.md`](README.md) (seção *Estrutura de pastas*) |
-| 3. Explicação da estrutura e elementos do código         | [`README.md`](README.md) (seção *Arquitetura* + tabela de componentes) |
-| 4. (Opcional) Código funcionando                         | Todo o projeto Rails em `app/`, `config/`, `db/` |
-| 5. (Opcional) Persistência funcionando                   | PostgreSQL + Active Record + migration aplicada |
+- Filtro por nome migrou de path segment para query param: a rota
+  `/clientes/nome/:nome` foi removida e `index` aceita `?nome=...`.
+- O service ganhou propósito real: `listar(filtros)` orquestra filtro
+  + ordenação default + hard limit de 100 resultados. `atualizar`
+  devolve boolean honesto (não mais a instância) para o controller
+  poder usar o padrão idiomático de Rails.
+- O 404 foi centralizado em `ApplicationController` via `rescue_from
+  ActiveRecord::RecordNotFound`. O service voltou a usar `Cliente.find`,
+  que levanta a exceção.
+- Schema reforçado por nova migration: `null: false`, `limit:` em ambas
+  as colunas, índice único em `lower(email)`.
+- Model normaliza email (downcase + strip) e nome (strip) em
+  `before_validation`; valida unicidade case-insensitive e tamanho.
+- Envelope de erro padronizado em `{ errors: { ... } }`: 404 com chave
+  `base`, 422 com `ActiveModel::Errors` por campo.
+- Locale padrão configurado em `pt-BR`, com traduções das chaves usadas
+  pela app em `config/locales/pt-BR.yml`.

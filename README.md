@@ -1,51 +1,30 @@
-# API de Clientes: Desafio Final (Arquitetura de Software)
+# API de Clientes
 
-API RESTful em **Ruby on Rails 7.1 (modo `--api`)** que expõe um CRUD do
-domínio **Cliente**, seguindo o padrão arquitetural **MVC**, com uma
-camada explícita de **Service** entre o Controller e o Model.
+API REST em Ruby on Rails 7.1 (modo `--api`) com CRUD do recurso
+Cliente, contagem total e busca por nome. Estrutura segue o MVC do
+Rails com uma camada de Service entre Controller e Model, espelhando o
+desenho do exemplo Java do enunciado.
 
-Atende ao enunciado da disciplina de Arquitetura de Software: construir
-e disponibilizar uma API REST para parceiros, com CRUD + endpoints
-auxiliares de contagem e busca por nome.
-
-> Os comandos executados na construção do projeto, em ordem cronológica,
-> estão registrados em [`PASSOS.md`](PASSOS.md).
-> Os diagramas de arquitetura (C4 + sequência) estão em
-> [`diagrama.md`](diagrama.md).
-
----
-
-## Sumário
-
-- [Stack](#stack)
-- [Arquitetura](#arquitetura)
-- [Estrutura de pastas](#estrutura-de-pastas)
-- [Endpoints](#endpoints)
-- [Como rodar](#como-rodar)
-- [Exemplos de uso (`curl`)](#exemplos-de-uso-curl)
-
----
+Os comandos rodados durante a construção do projeto estão em
+[`PASSOS.md`](PASSOS.md). Diagramas em Mermaid (contexto C4, componentes,
+mapa de endpoints e sequência de `POST /clientes`) em
+[`diagrama.md`](diagrama.md). Code review e refactors que entraram
+depois dele estão em [`CODE_REVIEW.md`](CODE_REVIEW.md).
 
 ## Stack
 
-| Camada       | Tecnologia                |
-| ------------ | ------------------------- |
-| Linguagem    | Ruby 3.1.6                |
-| Framework    | Ruby on Rails 7.1 (`--api`) |
-| ORM          | Active Record             |
-| Banco        | PostgreSQL                |
-| Servidor app | Puma (default do Rails)   |
-| Testes       | Minitest (default do Rails) |
-
----
+- Ruby 3.1.6
+- Rails 7.1 (modo `--api`)
+- Active Record + PostgreSQL
+- Puma e Minitest (defaults do Rails)
 
 ## Arquitetura
 
-Padrão **MVC** clássico do Rails, com uma camada de **Service** adicionada
-entre Controller e Model, espelhando o desenho do exemplo Java do
-enunciado (`Controller → Service → Repository/Model`).
-
-### Visão de componentes
+O fluxo de um request é `Routes → Controller → Service → Model → DB`.
+O Controller cuida só de HTTP (params, status, JSON). O Service
+(`ClienteService`) compõe filtros, ordenação e hard limit, e devolve
+booleanos honestos nas escritas. O Model (`Cliente`) tem as validações
+e a query de busca por nome com escape de wildcards.
 
 ```mermaid
 graph TD
@@ -53,10 +32,10 @@ graph TD
 
     subgraph rails["API Rails 7.1 (modo --api)"]
         direction TB
-        routes["config/routes.rb<br/><i>roteamento RESTful resourceful</i>"]
-        controller["ClientesController<br/><i>app/controllers/clientes_controller.rb</i><br/>traduz HTTP &lt;-&gt; chamadas de serviço"]
-        service["ClienteService<br/><i>app/services/cliente_service.rb</i><br/>regra de negócio (PORO)"]
-        model["Cliente (ActiveRecord)<br/><i>app/models/cliente.rb</i><br/>validações + mapeamento ORM"]
+        routes["config/routes.rb<br/><i>roteamento RESTful</i>"]
+        controller["ClientesController<br/><i>traduz HTTP em chamadas de serviço</i>"]
+        service["ClienteService<br/><i>compõe filtros, ordenação, limite</i>"]
+        model["Cliente (ActiveRecord)<br/><i>validações e busca por nome</i>"]
     end
 
     db[("PostgreSQL<br/>tabela <code>clientes</code>")]
@@ -72,164 +51,119 @@ graph TD
     controller -- "render json" --> client
 ```
 
-> Os outros diagramas (contexto, mapa de endpoints, sequência de
-> `POST /clientes`) estão em [`diagrama.md`](diagrama.md).
-
----
-
 ## Estrutura de pastas
 
-Apenas as pastas/arquivos que **importam para entender este desafio**.
-A estrutura geral é a padrão do `rails new --api`.
+Só o que importa pra entender o projeto. O resto é o esqueleto padrão
+de `rails new --api`.
 
 ```
 desafio-final-pos/
 ├── app/
 │   ├── controllers/
-│   │   ├── application_controller.rb       # base de todos os controllers (modo API)
-│   │   └── clientes_controller.rb          # 6 ações: index (com filtro `?nome=`), show, create, update, destroy, count
+│   │   ├── application_controller.rb       # trata 404 via rescue_from
+│   │   └── clientes_controller.rb          # index (com ?nome=), show, create, update, destroy, count
 │   ├── models/
-│   │   └── cliente.rb                      # ActiveRecord + validações (nome, email)
+│   │   └── cliente.rb                      # validações, normalização, busca por nome
 │   └── services/
-│       └── cliente_service.rb              # regra de negócio (PORO chamado pelo controller)
+│       └── cliente_service.rb              # composição de filtros, ordenação, hard limit
 ├── config/
-│   ├── database.yml                        # conexão PostgreSQL por ambiente
-│   └── routes.rb                           # resources :clientes + count
+│   ├── application.rb                      # locale pt-BR
+│   ├── database.yml                        # conexão PostgreSQL
+│   ├── locales/pt-BR.yml                   # mensagens de validação traduzidas
+│   └── routes.rb                           # resources :clientes + /count
 ├── db/
-│   ├── migrate/20260524120426_create_clientes.rb   # cria a tabela `clientes`
-│   └── schema.rb                           # snapshot do schema atual
-├── test/                                   # esqueletos de teste gerados pelo scaffold
-├── Gemfile                                 # dependências (rails, pg, puma, etc.)
-├── README.md                               # este arquivo
-├── PASSOS.md                               # diário de bordo dos comandos executados
-└── diagrama.md                             # diagramas Mermaid de arquitetura
+│   ├── migrate/
+│   │   ├── 20260524120426_create_clientes.rb
+│   │   └── 20260524170000_add_constraints_to_clientes.rb
+│   └── schema.rb
+├── test/                                   # minitest (model + integração)
+├── README.md
+├── PASSOS.md
+├── CODE_REVIEW.md
+└── diagrama.md
 ```
 
-### Papel de cada componente (MVC + Service)
+| Componente | Arquivo | Responsabilidade |
+| --- | --- | --- |
+| Model | `app/models/cliente.rb` | Mapeia a tabela `clientes`, valida (`presence`, formato de email, unicidade case-insensitive, tamanho) e normaliza email/nome no `before_validation`. Também tem o scope `busca_por_nome`, que escapa wildcards de `ILIKE` (`%`, `_`, `\`). |
+| Controller | `app/controllers/clientes_controller.rb` | Recebe a requisição, aplica strong parameters, chama o service e devolve status + JSON. Não fala SQL nem regra de negócio direto. |
+| Service | `app/services/cliente_service.rb` | Compõe `listar(filtros)` com filtro + ordenação + hard limit. Escritas retornam boolean; leitura por id usa `find` (404 vira responsabilidade do `ApplicationController`). |
+| Routes | `config/routes.rb` | `resources :clientes` + `/count` em `collection`. |
+| Migration / Schema | `db/migrate/*`, `db/schema.rb` | Schema versionado: `NOT NULL`, `limit:`, índice único em `lower(email)`. |
 
-| Componente            | Arquivo                                       | Responsabilidade |
-| --------------------- | --------------------------------------------- | ---------------- |
-| **Model**             | `app/models/cliente.rb`                       | Representar a entidade `Cliente` no domínio, mapear a tabela `clientes` via Active Record, declarar **validações** (`presence`, formato de email). É a única camada que conhece o schema do banco. |
-| **View**              | *(não há)*                                    | Em modo `--api`, o Rails não gera views. A "view" da API é o JSON renderizado por `render json:` no controller (uma representação serializada do recurso). |
-| **Controller**        | `app/controllers/clientes_controller.rb`      | Receber a requisição HTTP, aplicar *strong parameters*, **delegar a regra de negócio para o `ClienteService`** e devolver o status/JSON correto. Não conhece SQL nem regra de negócio direta (controller "magro"). |
-| **Service**           | `app/services/cliente_service.rb`             | Concentrar a **lógica de negócio**: listar, buscar (por id ou nome), contar, criar, atualizar e excluir clientes. É um PORO (Plain Old Ruby Object) com métodos de classe. Permite que controllers (e jobs, console, etc.) compartilhem a mesma regra. |
-| **Routes**            | `config/routes.rb`                            | Mapear URL/verbo HTTP para `Controller#ação` usando `resources :clientes` + `collection do … end` para os endpoints extras. |
-| **Migration / Schema**| `db/migrate/*`, `db/schema.rb`                | Definir e evoluir o schema do PostgreSQL de forma versionada. |
-
----
+A "view" da API é o próprio JSON renderizado pelo controller — em modo
+`--api` o Rails não gera views nem assets.
 
 ## Endpoints
 
-Base URL local: `http://localhost:3000`
+Base local: `http://localhost:3000`
 
-| Verbo  | Rota                       | Ação              | Descrição                                  |
-| ------ | -------------------------- | ----------------- | ------------------------------------------ |
-| POST   | `/clientes`                | `create`          | Cria um cliente (`{ nome, email }`)        |
-| GET    | `/clientes`                | `index`           | Lista todos os clientes (**Find All**). Aceita `?nome=...` para filtrar por nome (`ILIKE %nome%`, **Find By Name**) |
-| GET    | `/clientes/:id`            | `show`            | Busca um cliente por ID (**Find By ID**)   |
-| PATCH  | `/clientes/:id`            | `update`          | Atualiza um cliente                        |
-| PUT    | `/clientes/:id`            | `update`          | Atualiza um cliente                        |
-| DELETE | `/clientes/:id`            | `destroy`         | Remove um cliente                          |
-| GET    | `/clientes/count`          | `count`           | **Contagem total** de clientes             |
+| Verbo | Rota | Ação | Descrição |
+| --- | --- | --- | --- |
+| POST | `/clientes` | `create` | Cria um cliente (`{ nome, email }`) |
+| GET | `/clientes` | `index` | Lista clientes. `?nome=...` filtra por nome (`ILIKE %nome%`, case-insensitive). Retorna no máximo 100. |
+| GET | `/clientes/:id` | `show` | Busca por id |
+| PATCH / PUT | `/clientes/:id` | `update` | Atualiza |
+| DELETE | `/clientes/:id` | `destroy` | Remove |
+| GET | `/clientes/count` | `count` | Total de clientes (sem filtro) |
 
----
+Erros: 404 retorna `{ "errors": { "base": ["Cliente não encontrado"] } }`,
+422 retorna `{ "errors": { "campo": ["mensagem"] } }`.
 
 ## Como rodar
 
-### Pré-requisitos
-
-- Ruby `3.1.6` (recomendado via `asdf` / `rbenv`)
-- Rails `7.1.x`
-- PostgreSQL rodando localmente, com permissão para criar bancos pelo usuário corrente
-
-### Passos
-
 ```bash
-# 1. Instalar dependências
 bundle install
-
-# 2. Criar os bancos (development + test) e aplicar as migrations
 bin/rails db:create db:migrate
-
-# 3. Subir o servidor (porta 3000)
 bin/rails server
 ```
 
-A API fica disponível em `http://localhost:3000`.
+A API sobe em `http://localhost:3000`.
 
-### Rodar os testes
+Testes: `bin/rails test`.
 
-```bash
-bin/rails test
-```
-
----
-
-## Exemplos de uso (`curl`)
-
-### Criar cliente
+## Exemplos com curl
 
 ```bash
+# Criar
 curl -X POST http://localhost:3000/clientes \
   -H "Content-Type: application/json" \
   -d '{"cliente": {"nome": "Maria Silva", "email": "maria@example.com"}}'
-```
 
-### Listar todos (find all)
-
-```bash
+# Listar todos
 curl http://localhost:3000/clientes
-```
 
-### Buscar por ID
+# Buscar por nome
+curl "http://localhost:3000/clientes?nome=maria"
 
-```bash
+# Buscar por id
 curl http://localhost:3000/clientes/1
-```
 
-### Atualizar
-
-```bash
+# Atualizar
 curl -X PATCH http://localhost:3000/clientes/1 \
   -H "Content-Type: application/json" \
   -d '{"cliente": {"email": "maria.nova@example.com"}}'
-```
 
-### Excluir
-
-```bash
+# Excluir
 curl -X DELETE http://localhost:3000/clientes/1
-```
 
-### Contar
-
-```bash
+# Contar
 curl http://localhost:3000/clientes/count
 # => {"total": 1}
 ```
 
-### Buscar por nome (parcial, case-insensitive)
-
-```bash
-curl "http://localhost:3000/clientes?nome=maria"
-```
-
----
-
 ## Notas de produção
 
-Itens conhecidos que estão intencionalmente fora do escopo do desafio
-e teriam que ser endereçados antes de expor essa API para fora:
+O que está intencionalmente fora do escopo do desafio e precisaria ser
+endereçado antes de expor essa API em produção:
 
-- **Autenticação e autorização** não foram implementadas. Qualquer
-  cliente HTTP pode listar, criar, atualizar e remover registros.
-  Para uso real, o mínimo seria token de API por parceiro mais
-  validação por middleware.
-- **Busca por nome com `ILIKE '%foo%'`** não escala: o wildcard à
-  esquerda impede uso de índice btree. Caminho de upgrade é habilitar
-  a extensão `pg_trgm` no PostgreSQL e criar um índice GIN sobre
-  `nome` (`CREATE INDEX ON clientes USING gin (nome gin_trgm_ops);`).
-- **Listagem é limitada a 100 resultados** (`ClienteService::MAX_RESULTADOS`)
-  como proteção básica. Para colecionar todos os clientes em batches
-  ou paginar por página, trocar por `kaminari`/`pagy` com
-  `?page=&per_page=` e expor o total via header `X-Total-Count`.
+- Sem autenticação ou autorização. Qualquer cliente HTTP pode listar,
+  criar, atualizar e remover. Para uso real, no mínimo um token por
+  parceiro validado em middleware.
+- `ILIKE '%foo%'` não usa índice btree por causa do wildcard à
+  esquerda. O caminho de upgrade é habilitar `pg_trgm` no PostgreSQL e
+  criar um índice GIN sobre `nome` (`CREATE INDEX ON clientes USING gin
+  (nome gin_trgm_ops);`).
+- Listagem tem hard limit de 100 (`ClienteService::MAX_RESULTADOS`).
+  Quando isso deixar de servir, trocar por `kaminari`/`pagy` com
+  `?page=&per_page=` e total via header `X-Total-Count`.

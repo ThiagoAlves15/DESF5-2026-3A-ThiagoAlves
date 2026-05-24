@@ -1,30 +1,21 @@
-# Diagrama de Arquitetura: API de Clientes
+# Diagramas
 
-Diagramas em **Mermaid** (renderizáveis nativamente em GitHub/GitLab e
-exportáveis para PNG/SVG). A fonte de cada diagrama está no bloco de código
-imediatamente abaixo do seu título.
+Quatro diagramas em Mermaid. Renderizam direto no GitHub/GitLab e
+podem ser exportados pra PNG/SVG se precisar.
 
----
-
-## 1. Visão de Contexto (C4, Nível 1)
-
-Quem usa o sistema e com o que ele conversa.
+## 1. Contexto (C4 nível 1)
 
 ```mermaid
 graph LR
     parceiro["Parceiro / Cliente HTTP<br/><i>consumidor da API</i>"]
-    api["API de Clientes<br/><b>Ruby on Rails 7.1</b><br/><i>expõe CRUD + count + find by name</i>"]
-    db[("PostgreSQL<br/><i>persistência dos clientes</i>")]
+    api["API de Clientes<br/>Ruby on Rails 7.1<br/><i>CRUD, contagem, busca por nome</i>"]
+    db[("PostgreSQL<br/><i>persistência</i>")]
 
     parceiro -- "HTTPS / JSON" --> api
     api -- "SQL via Active Record" --> db
 ```
 
----
-
-## 2. Visão de Componentes (C4, Nível 3): padrão MVC
-
-Como o request HTTP atravessa as camadas internas até chegar ao banco.
+## 2. Componentes (C4 nível 3)
 
 ```mermaid
 graph TD
@@ -32,10 +23,10 @@ graph TD
 
     subgraph rails["API Rails 7.1 (modo --api)"]
         direction TB
-        routes["config/routes.rb<br/><i>roteamento RESTful resourceful</i>"]
-        controller["ClientesController<br/><i>app/controllers/clientes_controller.rb</i><br/>traduz HTTP &lt;-&gt; chamadas de serviço"]
-        service["ClienteService<br/><i>app/services/cliente_service.rb</i><br/>regra de negócio (PORO)"]
-        model["Cliente (ActiveRecord)<br/><i>app/models/cliente.rb</i><br/>validações + mapeamento ORM"]
+        routes["config/routes.rb<br/><i>roteamento RESTful</i>"]
+        controller["ClientesController<br/><i>traduz HTTP em chamadas de serviço</i>"]
+        service["ClienteService<br/><i>filtros, ordenação, hard limit</i>"]
+        model["Cliente (ActiveRecord)<br/><i>validações e busca por nome</i>"]
     end
 
     db[("PostgreSQL<br/>tabela <code>clientes</code>")]
@@ -51,31 +42,23 @@ graph TD
     controller -- "render json" --> client
 ```
 
----
-
-## 3. Mapa de Endpoints
-
-Todos os endpoints expostos e a ação do controller que os atende.
+## 3. Mapa de endpoints
 
 ```mermaid
 graph LR
-    subgraph CRUD["CRUD básico (resources :clientes)"]
+    subgraph CRUD["CRUD (resources :clientes)"]
         e1["POST /clientes"] --> a1["create"]
-        e2["GET /clientes<br/>(opcional: ?nome=...)"] --> a2["index<br/><i>find all / find by name (ILIKE)</i>"]
-        e3["GET /clientes/:id"] --> a3["show<br/><i>find by id</i>"]
+        e2["GET /clientes<br/>(opcional ?nome=...)"] --> a2["index<br/><i>lista, com filtro opcional por nome</i>"]
+        e3["GET /clientes/:id"] --> a3["show"]
         e4["PATCH /clientes/:id"] --> a4["update"]
         e5["DELETE /clientes/:id"] --> a5["destroy"]
     end
-    subgraph Extras["Endpoints extras"]
-        e6["GET /clientes/count"] --> a6["count<br/><i>contagem total</i>"]
+    subgraph Extras["Extras"]
+        e6["GET /clientes/count"] --> a6["count"]
     end
 ```
 
----
-
-## 4. Sequência: exemplo `POST /clientes`
-
-Fluxo de criação de um cliente, da chamada do parceiro até a resposta JSON.
+## 4. Sequência de `POST /clientes`
 
 ```mermaid
 sequenceDiagram
@@ -92,7 +75,7 @@ sequenceDiagram
     CT->>CT: cliente_params (strong params)
     CT->>S: salvar(atributos)
     S->>M: Cliente.create(atributos)
-    M->>M: validações (presence, email)
+    M->>M: normaliza + valida (presença, formato, unicidade)
     M->>DB: INSERT INTO clientes ...
     DB-->>M: id gerado
     M-->>S: instância persistida
@@ -100,6 +83,6 @@ sequenceDiagram
     alt cliente.persisted?
         CT-->>C: 201 Created + JSON
     else inválido
-        CT-->>C: 422 Unprocessable Entity + errors
+        CT-->>C: 422 + { errors: { campo: [...] } }
     end
 ```
