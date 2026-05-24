@@ -2,14 +2,12 @@
 
 API REST em Ruby on Rails 7.1 (modo `--api`) com CRUD do recurso
 Cliente, contagem total e busca por nome. Estrutura segue o MVC do
-Rails com uma camada de Service entre Controller e Model, espelhando o
-desenho do exemplo Java do enunciado.
+Rails com uma camada de Service entre Controller e Model.
 
 Os comandos rodados durante a construção do projeto estão em
 [`PASSOS.md`](PASSOS.md). Diagramas em Mermaid (contexto C4, componentes,
 mapa de endpoints e sequência de `POST /clientes`) em
-[`diagrama.md`](diagrama.md). Code review e refactors que entraram
-depois dele estão em [`CODE_REVIEW.md`](CODE_REVIEW.md).
+[`diagrama.md`](diagrama.md).
 
 ## Stack
 
@@ -53,7 +51,7 @@ graph TD
 
 ## Estrutura de pastas
 
-Só o que importa pra entender o projeto. O resto é o esqueleto padrão
+A seguir são detalhadas as pastas principais do projeto, outras partes são o esqueleto padrão
 de `rails new --api`.
 
 ```
@@ -79,7 +77,6 @@ desafio-final-pos/
 ├── test/                                   # minitest (model + integração)
 ├── README.md
 ├── PASSOS.md
-├── CODE_REVIEW.md
 └── diagrama.md
 ```
 
@@ -91,12 +88,10 @@ desafio-final-pos/
 | Routes | `config/routes.rb` | `resources :clientes` + `/count` em `collection`. |
 | Migration / Schema | `db/migrate/*`, `db/schema.rb` | Schema versionado: `NOT NULL`, `limit:`, índice único em `lower(email)`. |
 
-A "view" da API é o próprio JSON renderizado pelo controller — em modo
+A "view" da API é o próprio JSON renderizado pelo controller, em modo
 `--api` o Rails não gera views nem assets.
 
 ## Endpoints
-
-Base local: `http://localhost:3000`
 
 | Verbo | Rota | Ação | Descrição |
 | --- | --- | --- | --- |
@@ -114,13 +109,13 @@ Erros: 404 retorna `{ "errors": { "base": ["Cliente não encontrado"] } }`,
 
 ```bash
 bundle install
-bin/rails db:create db:migrate
-bin/rails server
+rails db:create db:migrate
+rails server
 ```
 
-A API sobe em `http://localhost:3000`.
+A API sobe em `http://localhost:3000` por padrão.
 
-Testes: `bin/rails test`.
+Testes: `rails test`.
 
 ## Exemplos com curl
 
@@ -164,6 +159,6 @@ endereçado antes de expor essa API em produção:
   esquerda. O caminho de upgrade é habilitar `pg_trgm` no PostgreSQL e
   criar um índice GIN sobre `nome` (`CREATE INDEX ON clientes USING gin
   (nome gin_trgm_ops);`).
-- Listagem tem hard limit de 100 (`ClienteService::MAX_RESULTADOS`).
-  Quando isso deixar de servir, trocar por `kaminari`/`pagy` com
+- Listagem tem limite de 100 resultados (`ClienteService::MAX_RESULTADOS`).
+  Em ambiente de produção real, trocar por `kaminari`/`pagy` com
   `?page=&per_page=` e total via header `X-Total-Count`.

@@ -117,8 +117,7 @@ endpoints, e a sequência de `POST /clientes`) e no `README.md`.
 
 ## 6. Refactors pós code review
 
-Mudanças que entraram depois do code review (resumo, ver
-`CODE_REVIEW.md` para o detalhe):
+Mudanças que entraram depois:
 
 - Filtro por nome migrou de path segment para query param: a rota
   `/clientes/nome/:nome` foi removida e `index` aceita `?nome=...`.
