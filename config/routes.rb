@@ -2,7 +2,6 @@ Rails.application.routes.draw do
   resources :clientes do
     collection do
       get :count
-      get 'nome/:nome', to: 'clientes#by_name', as: :by_name
     end
   end
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html

@@ -1,18 +1,22 @@
 class ClienteService
-  def self.listar_todos
-    Cliente.all
-  end
+  DEFAULT_ORDER = :nome
 
-  def self.buscar_por_id(id)
-    Cliente.find_by(id: id)
-  end
+  # Hard limit em vez de paginação real, na prática
+  # trocar por uma gem como kaminari ou pagy.
+  MAX_RESULTADOS = 100
 
-  def self.buscar_por_nome(nome)
-    Cliente.buscar_por_nome(nome)
+  def self.listar(filtros = {})
+    scope = Cliente.all
+    scope = scope.busca_por_nome(filtros[:nome]) if filtros[:nome].present?
+    scope.order(DEFAULT_ORDER).limit(MAX_RESULTADOS)
   end
 
   def self.contar
     Cliente.count
+  end
+
+  def self.buscar_por_id(id)
+    Cliente.find(id)
   end
 
   def self.salvar(atributos)
@@ -21,7 +25,6 @@ class ClienteService
 
   def self.atualizar(cliente, atributos)
     cliente.update(atributos)
-    cliente
   end
 
   def self.deletar(cliente)

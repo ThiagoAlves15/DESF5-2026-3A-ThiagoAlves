@@ -6,14 +6,14 @@ class ClientesControllerTest < ActionDispatch::IntegrationTest
     @outro   = clientes(:two)
   end
 
-  # --- CRUD: index, show, create, update, destroy ---
-
   test "GET /clientes retorna lista (find all)" do
     get clientes_url, as: :json
     assert_response :success
     body = JSON.parse(response.body)
     assert_kind_of Array, body
-    assert_equal 2, body.size
+    ids = body.map { |c| c["id"] }
+    assert_includes ids, @cliente.id
+    assert_includes ids, @outro.id
   end
 
   test "GET /clientes/:id retorna cliente (find by id)" do
@@ -28,7 +28,7 @@ class ClientesControllerTest < ActionDispatch::IntegrationTest
     get cliente_url(9999), as: :json
     assert_response :not_found
     body = JSON.parse(response.body)
-    assert_includes body["error"], "não encontrado"
+    assert_includes body["errors"]["base"], "Cliente não encontrado"
   end
 
   test "POST /clientes cria cliente válido" do
@@ -51,7 +51,7 @@ class ClientesControllerTest < ActionDispatch::IntegrationTest
     end
     assert_response :unprocessable_entity
     body = JSON.parse(response.body)
-    assert_includes body.keys, "email"
+    assert_includes body["errors"].keys, "email"
   end
 
   test "PATCH /clientes/:id atualiza cliente" do
@@ -70,8 +70,6 @@ class ClientesControllerTest < ActionDispatch::IntegrationTest
     assert_response :no_content
   end
 
-  # --- Endpoints extras: count, by_name ---
-
   test "GET /clientes/count retorna contagem total" do
     get count_clientes_url, as: :json
     assert_response :success
@@ -79,24 +77,24 @@ class ClientesControllerTest < ActionDispatch::IntegrationTest
     assert_equal 2, body["total"]
   end
 
-  test "GET /clientes/nome/:nome (find by name) com match" do
-    get by_name_clientes_url(nome: "maria"), as: :json
+  test "GET /clientes?nome=... filtra por nome (find by name)" do
+    get clientes_url(nome: "maria"), as: :json
     assert_response :success
     body = JSON.parse(response.body)
     assert_equal 1, body.size
     assert_equal "Maria Silva", body.first["nome"]
   end
 
-  test "GET /clientes/nome/:nome é case-insensitive e parcial" do
-    get by_name_clientes_url(nome: "SIL"), as: :json
+  test "GET /clientes?nome=... é case-insensitive e parcial" do
+    get clientes_url(nome: "SIL"), as: :json
     assert_response :success
     body = JSON.parse(response.body)
     assert_equal 1, body.size
     assert_equal "Maria Silva", body.first["nome"]
   end
 
-  test "GET /clientes/nome/:nome sem match retorna lista vazia" do
-    get by_name_clientes_url(nome: "inexistente"), as: :json
+  test "GET /clientes?nome=... sem match retorna lista vazia" do
+    get clientes_url(nome: "inexistente"), as: :json
     assert_response :success
     assert_equal [], JSON.parse(response.body)
   end

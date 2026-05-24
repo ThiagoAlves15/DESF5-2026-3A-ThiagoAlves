@@ -1,4 +1,4 @@
-# Diagrama de Arquitetura — API de Clientes
+# Diagrama de Arquitetura: API de Clientes
 
 Diagramas em **Mermaid** (renderizáveis nativamente em GitHub/GitLab e
 exportáveis para PNG/SVG). A fonte de cada diagrama está no bloco de código
@@ -6,7 +6,7 @@ imediatamente abaixo do seu título.
 
 ---
 
-## 1. Visão de Contexto (C4 — Nível 1)
+## 1. Visão de Contexto (C4, Nível 1)
 
 Quem usa o sistema e com o que ele conversa.
 
@@ -22,7 +22,7 @@ graph LR
 
 ---
 
-## 2. Visão de Componentes (C4 — Nível 3) — padrão MVC
+## 2. Visão de Componentes (C4, Nível 3): padrão MVC
 
 Como o request HTTP atravessa as camadas internas até chegar ao banco.
 
@@ -61,20 +61,19 @@ Todos os endpoints expostos e a ação do controller que os atende.
 graph LR
     subgraph CRUD["CRUD básico (resources :clientes)"]
         e1["POST /clientes"] --> a1["create"]
-        e2["GET /clientes"] --> a2["index<br/><i>find all</i>"]
+        e2["GET /clientes<br/>(opcional: ?nome=...)"] --> a2["index<br/><i>find all / find by name (ILIKE)</i>"]
         e3["GET /clientes/:id"] --> a3["show<br/><i>find by id</i>"]
         e4["PATCH /clientes/:id"] --> a4["update"]
         e5["DELETE /clientes/:id"] --> a5["destroy"]
     end
     subgraph Extras["Endpoints extras"]
         e6["GET /clientes/count"] --> a6["count<br/><i>contagem total</i>"]
-        e7["GET /clientes/nome/:nome"] --> a7["by_name<br/><i>find by name (ILIKE)</i>"]
     end
 ```
 
 ---
 
-## 4. Sequência — exemplo: `POST /clientes`
+## 4. Sequência: exemplo `POST /clientes`
 
 Fluxo de criação de um cliente, da chamada do parceiro até a resposta JSON.
 

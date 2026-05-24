@@ -1,0 +1,8 @@
+pt-BR:
+  errors:
+    messages:
+      blank: "não pode ficar em branco"
+      taken: "já está em uso"
+      too_long: "é muito longo (máximo: %{count} caracteres)"
+      too_short: "é muito curto (mínimo: %{count} caracteres)"
+      invalid: "é inválido"

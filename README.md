@@ -1,4 +1,4 @@
-# API de Clientes — Desafio Final (Arquitetura de Software)
+# API de Clientes: Desafio Final (Arquitetura de Software)
 
 API RESTful em **Ruby on Rails 7.1 (modo `--api`)** que expõe um CRUD do
 domínio **Cliente**, seguindo o padrão arquitetural **MVC**, com uma
@@ -42,7 +42,7 @@ auxiliares de contagem e busca por nome.
 ## Arquitetura
 
 Padrão **MVC** clássico do Rails, com uma camada de **Service** adicionada
-entre Controller e Model — espelhando o desenho do exemplo Java do
+entre Controller e Model, espelhando o desenho do exemplo Java do
 enunciado (`Controller → Service → Repository/Model`).
 
 ### Visão de componentes
@@ -87,14 +87,14 @@ desafio-final-pos/
 ├── app/
 │   ├── controllers/
 │   │   ├── application_controller.rb       # base de todos os controllers (modo API)
-│   │   └── clientes_controller.rb          # 7 ações: index, show, create, update, destroy, count, by_name
+│   │   └── clientes_controller.rb          # 6 ações: index (com filtro `?nome=`), show, create, update, destroy, count
 │   ├── models/
 │   │   └── cliente.rb                      # ActiveRecord + validações (nome, email)
 │   └── services/
 │       └── cliente_service.rb              # regra de negócio (PORO chamado pelo controller)
 ├── config/
 │   ├── database.yml                        # conexão PostgreSQL por ambiente
-│   └── routes.rb                           # resources :clientes + count + nome/:nome
+│   └── routes.rb                           # resources :clientes + count
 ├── db/
 │   ├── migrate/20260524120426_create_clientes.rb   # cria a tabela `clientes`
 │   └── schema.rb                           # snapshot do schema atual
@@ -110,8 +110,8 @@ desafio-final-pos/
 | Componente            | Arquivo                                       | Responsabilidade |
 | --------------------- | --------------------------------------------- | ---------------- |
 | **Model**             | `app/models/cliente.rb`                       | Representar a entidade `Cliente` no domínio, mapear a tabela `clientes` via Active Record, declarar **validações** (`presence`, formato de email). É a única camada que conhece o schema do banco. |
-| **View**              | *(não há)*                                    | Em modo `--api`, o Rails não gera views. A "view" da API é o JSON renderizado por `render json:` no controller — uma representação serializada do recurso. |
-| **Controller**        | `app/controllers/clientes_controller.rb`      | Receber a requisição HTTP, aplicar *strong parameters*, **delegar a regra de negócio para o `ClienteService`** e devolver o status/JSON correto. Não conhece SQL nem regra de negócio direta — controller "magro". |
+| **View**              | *(não há)*                                    | Em modo `--api`, o Rails não gera views. A "view" da API é o JSON renderizado por `render json:` no controller (uma representação serializada do recurso). |
+| **Controller**        | `app/controllers/clientes_controller.rb`      | Receber a requisição HTTP, aplicar *strong parameters*, **delegar a regra de negócio para o `ClienteService`** e devolver o status/JSON correto. Não conhece SQL nem regra de negócio direta (controller "magro"). |
 | **Service**           | `app/services/cliente_service.rb`             | Concentrar a **lógica de negócio**: listar, buscar (por id ou nome), contar, criar, atualizar e excluir clientes. É um PORO (Plain Old Ruby Object) com métodos de classe. Permite que controllers (e jobs, console, etc.) compartilhem a mesma regra. |
 | **Routes**            | `config/routes.rb`                            | Mapear URL/verbo HTTP para `Controller#ação` usando `resources :clientes` + `collection do … end` para os endpoints extras. |
 | **Migration / Schema**| `db/migrate/*`, `db/schema.rb`                | Definir e evoluir o schema do PostgreSQL de forma versionada. |
@@ -125,13 +125,12 @@ Base URL local: `http://localhost:3000`
 | Verbo  | Rota                       | Ação              | Descrição                                  |
 | ------ | -------------------------- | ----------------- | ------------------------------------------ |
 | POST   | `/clientes`                | `create`          | Cria um cliente (`{ nome, email }`)        |
-| GET    | `/clientes`                | `index`           | Lista todos os clientes (**Find All**)     |
+| GET    | `/clientes`                | `index`           | Lista todos os clientes (**Find All**). Aceita `?nome=...` para filtrar por nome (`ILIKE %nome%`, **Find By Name**) |
 | GET    | `/clientes/:id`            | `show`            | Busca um cliente por ID (**Find By ID**)   |
 | PATCH  | `/clientes/:id`            | `update`          | Atualiza um cliente                        |
 | PUT    | `/clientes/:id`            | `update`          | Atualiza um cliente                        |
 | DELETE | `/clientes/:id`            | `destroy`         | Remove um cliente                          |
 | GET    | `/clientes/count`          | `count`           | **Contagem total** de clientes             |
-| GET    | `/clientes/nome/:nome`     | `by_name`         | **Find By Name** (`ILIKE %nome%`)          |
 
 ---
 
@@ -212,5 +211,25 @@ curl http://localhost:3000/clientes/count
 ### Buscar por nome (parcial, case-insensitive)
 
 ```bash
-curl http://localhost:3000/clientes/nome/maria
+curl "http://localhost:3000/clientes?nome=maria"
 ```
+
+---
+
+## Notas de produção
+
+Itens conhecidos que estão intencionalmente fora do escopo do desafio
+e teriam que ser endereçados antes de expor essa API para fora:
+
+- **Autenticação e autorização** não foram implementadas. Qualquer
+  cliente HTTP pode listar, criar, atualizar e remover registros.
+  Para uso real, o mínimo seria token de API por parceiro mais
+  validação por middleware.
+- **Busca por nome com `ILIKE '%foo%'`** não escala: o wildcard à
+  esquerda impede uso de índice btree. Caminho de upgrade é habilitar
+  a extensão `pg_trgm` no PostgreSQL e criar um índice GIN sobre
+  `nome` (`CREATE INDEX ON clientes USING gin (nome gin_trgm_ops);`).
+- **Listagem é limitada a 100 resultados** (`ClienteService::MAX_RESULTADOS`)
+  como proteção básica. Para colecionar todos os clientes em batches
+  ou paginar por página, trocar por `kaminari`/`pagy` com
+  `?page=&per_page=` e expor o total via header `X-Total-Count`.
